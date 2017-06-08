@@ -25,23 +25,18 @@ type point struct {
 	Y int
 }
 
-//ステータス
 type state struct {
-	End       bool
-	Ball      point
-	Vec       point
-	Life      int
-	Score     int
-	HighScore int
+	End  bool
+	Head point
 }
 
-// snake body
+//snake body
 type body struct {
 	x int
 	y int
 }
 
-//えさ
+//feed
 type Feed struct {
 	x int
 	y int
@@ -65,7 +60,6 @@ var feed = []Feed{}
 var flg = 0
 var out = ""
 
-//タイマーイベント
 func timerLoop(tch chan bool) {
 	for {
 		tch <- true
@@ -73,14 +67,12 @@ func timerLoop(tch chan bool) {
 	}
 }
 
-//キーイベント
 func keyEventLoop(kch chan termbox.Event) {
 	for {
 		kch <- termbox.PollEvent()
 	}
 }
 
-//画面描画
 func drawLoop(sch chan state) {
 	for {
 		st := <-sch
@@ -101,7 +93,7 @@ func drawLoop(sch chan state) {
 		// esa
 		if len(feed) < 1 {
 			rand.Seed(time.Now().UnixNano())
-			// TODO 縦範囲外に出る
+			// TODO feed appears outside field
 			feed = []Feed{
 				{
 					x: rand.Intn(fld.right - 1),
@@ -116,9 +108,9 @@ func drawLoop(sch chan state) {
 			pre_y := 0
 			for k, v := range snake {
 				if k == 0 {
-					drawLine(st.Ball.X, st.Ball.Y, head)
-					snake[k].x = st.Ball.X
-					snake[k].y = st.Ball.Y
+					drawLine(st.Head.X, st.Head.Y, head)
+					snake[k].x = st.Head.X
+					snake[k].y = st.Head.Y
 				} else {
 					drawLine(pre_x, pre_y, "*")
 					snake[k].x = pre_x
@@ -135,7 +127,6 @@ func drawLoop(sch chan state) {
 	}
 }
 
-//行を描画
 func drawLine(x, y int, str string) {
 	runes := []rune(str)
 	for i := 0; i < len(runes); i++ {
@@ -143,7 +134,6 @@ func drawLine(x, y int, str string) {
 	}
 }
 
-//ゲームメイン処理
 func controller(stateCh chan state, keyCh chan termbox.Event, timerCh chan bool) {
 	st := initGame()
 	for {
@@ -152,14 +142,14 @@ func controller(stateCh chan state, keyCh chan termbox.Event, timerCh chan bool)
 			return
 		}
 		select {
-		case key := <-keyCh: //キーイベント
+		case key := <-keyCh:
 			mu.Lock()
 			switch {
-			case key.Key == termbox.KeyEsc || key.Key == termbox.KeyCtrlC: //ゲーム終了
+			case key.Key == termbox.KeyEsc || key.Key == termbox.KeyCtrlC: //exit
 				st.End = true
 				mu.Unlock()
 				return
-			case key.Key == termbox.KeyArrowLeft || key.Ch == 'h': //ひだり
+			case key.Key == termbox.KeyArrowLeft || key.Ch == 'h': //left
 				if vector != "right" {
 					vector = "left"
 					toX = -1
@@ -167,7 +157,7 @@ func controller(stateCh chan state, keyCh chan termbox.Event, timerCh chan bool)
 					head = ">"
 				}
 				break
-			case key.Key == termbox.KeyArrowRight || key.Ch == 'l': //みぎ
+			case key.Key == termbox.KeyArrowRight || key.Ch == 'l': //right
 				if vector != "left" {
 					vector = "right"
 					toX = 1
@@ -175,7 +165,7 @@ func controller(stateCh chan state, keyCh chan termbox.Event, timerCh chan bool)
 					head = "<"
 				}
 				break
-			case key.Key == termbox.KeyArrowUp || key.Ch == 'k': //うえ
+			case key.Key == termbox.KeyArrowUp || key.Ch == 'k': //up
 				if vector != "down" {
 					vector = "up"
 					toX = 0
@@ -183,7 +173,7 @@ func controller(stateCh chan state, keyCh chan termbox.Event, timerCh chan bool)
 					head = "V"
 				}
 				break
-			case key.Key == termbox.KeyArrowDown || key.Ch == 'j': //した
+			case key.Key == termbox.KeyArrowDown || key.Ch == 'j': //down
 				if vector != "up" {
 					vector = "down"
 					toX = 0
@@ -198,14 +188,12 @@ func controller(stateCh chan state, keyCh chan termbox.Event, timerCh chan bool)
 			mu.Unlock()
 			stateCh <- st
 			break
-		case <-timerCh: //タイマーイベント
+		case <-timerCh:
 			mu.Lock()
 			if st.End == false {
 
-				st.Ball.X += toX
-				st.Ball.Y += toY
-				//st.Ball.X += st.Vec.X
-				//st.Ball.Y += st.Vec.Y
+				st.Head.X += toX
+				st.Head.Y += toY
 				st = checkCollision(st)
 			}
 			mu.Unlock()
@@ -219,14 +207,12 @@ func controller(stateCh chan state, keyCh chan termbox.Event, timerCh chan bool)
 
 func initGame() state {
 	st := state{End: true}
-	st.Ball.X, st.Ball.Y = _width/2, _height*2/3
-	st.Vec.X, st.Vec.Y = 1, -1
-	st.Life = 3
+	st.Head.X, st.Head.Y = _width/2, _height*2/3
 	snake = []body{}
-	snake = append(snake, body{x: st.Ball.X, y: st.Ball.Y})
-	snake = append(snake, body{x: st.Ball.X + 1, y: st.Ball.Y + 1})
+	snake = append(snake, body{x: st.Head.X, y: st.Head.Y})
+	snake = append(snake, body{x: st.Head.X + 1, y: st.Head.Y + 1})
 
-	// field
+	//field
 	fld.top = 2
 	fld.right = _width
 	fld.bottom = _height
@@ -235,51 +221,34 @@ func initGame() state {
 	return st
 }
 
-//衝突判定
+//intersect
 func checkCollision(st state) state {
-	//左右の壁
-	if st.Ball.X <= fld.left || st.Ball.X >= fld.right {
-		hs := 0
-		if st.HighScore < st.Score {
-			hs = st.Score
-		}
+	//LR wall
+	if st.Head.X <= fld.left || st.Head.X >= fld.right {
 		st = initGame()
-		st.HighScore = hs
 	}
 
-	//上下の壁
-	if st.Ball.Y <= fld.top || st.Ball.Y >= fld.bottom {
-		hs := 0
-		if st.HighScore < st.Score {
-			hs = st.Score
-		}
+	//UD wall
+	if st.Head.Y <= fld.top || st.Head.Y >= fld.bottom {
 		st = initGame()
-		st.HighScore = hs
 	}
 
-	//えさとの衝突判定
+	//feed
 	for i := range feed {
-		if feed[i].y == st.Ball.Y {
-			if feed[i].x <= st.Ball.X && feed[i].x >= st.Ball.X {
-				st.Vec.Y *= -1
-				st.Score++
-				snake = append(snake, body{x: st.Ball.X + 1, y: st.Ball.Y + 1})
+		if feed[i].y == st.Head.Y {
+			if feed[i].x <= st.Head.X && feed[i].x >= st.Head.X {
+				snake = append(snake, body{x: st.Head.X + 1, y: st.Head.Y + 1})
 				eatFeed()
 				break
 			}
 		}
 	}
 
-	//体衝突判定
+	//body
 	for i := range snake {
-		if snake[i].y == st.Ball.Y {
-			if snake[i].x <= st.Ball.X && snake[i].x >= st.Ball.X {
-				hs := 0
-				if st.HighScore < st.Score {
-					hs = st.Score
-				}
+		if snake[i].y == st.Head.Y {
+			if snake[i].x <= st.Head.X && snake[i].x >= st.Head.X {
 				st = initGame()
-				st.HighScore = hs
 				break
 			}
 		}
@@ -292,27 +261,27 @@ func eatFeed() {
 	feed = []Feed{}
 }
 
-func close() {
+func gameclose() {
 	termbox.Close()
 	fmt.Println(out)
 }
 
-//main
 func main() {
-
 	var s = flag.Int("s", 100, "speed")
 	var h = flag.Int("h", 25, "stage height")
 	var w = flag.Int("w", 80, "stage width")
 	flag.Parse()
+
 	_timeSpan = *s
 	_height = *h
 	_width = *w
 
 	err := termbox.Init()
-	defer close()
+	defer gameclose()
 	if err != nil {
 		panic(err)
 	}
+
 	stateCh := make(chan state)
 	keyCh := make(chan termbox.Event)
 	timerCh := make(chan bool)
@@ -330,8 +299,10 @@ func main() {
 			flg = 1
 		}()
 	}
+
+	// FIXME ignore output by other process excepting stdout e.g. git clone
 	termbox.SetCursor(0, 0)
+
 	controller(stateCh, keyCh, timerCh)
 	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
-
 }
