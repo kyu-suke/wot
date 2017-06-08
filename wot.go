@@ -63,6 +63,7 @@ var vector = "right"
 var fld = field{}
 var feed = []Feed{}
 var flg = 0
+var out = ""
 
 //タイマーイベント
 func timerLoop(tch chan bool) {
@@ -86,7 +87,6 @@ func drawLoop(sch chan state) {
 		mu.Lock()
 		termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
 		drawLine(1, 0, "EXIT : ESC KEY")
-		drawLine(_width-10, 0, fmt.Sprintf("Life : %02d", st.Life))
 
 		// field
 		for i := fld.top; i < fld.bottom; i++ {
@@ -292,23 +292,24 @@ func eatFeed() {
 	feed = []Feed{}
 }
 
+func close() {
+	termbox.Close()
+	fmt.Println(out)
+}
+
 //main
 func main() {
 
 	var s = flag.Int("s", 100, "speed")
 	var h = flag.Int("h", 25, "stage height")
 	var w = flag.Int("w", 80, "stage width")
-	var c = flag.String("c", "snake", "select cassette. [snake, ...]")
 	flag.Parse()
-	fmt.Println(*s)
-	fmt.Println(*h)
-	fmt.Println(*w)
-	fmt.Println(*c)
 	_timeSpan = *s
 	_height = *h
 	_width = *w
 
 	err := termbox.Init()
+	defer close()
 	if err != nil {
 		panic(err)
 	}
@@ -322,8 +323,8 @@ func main() {
 
 	if !terminal.IsTerminal(0) {
 		go func() {
-			out, _ := ioutil.ReadAll(os.Stdin)
-			fmt.Println(string(out))
+			stdin, _ := ioutil.ReadAll(os.Stdin)
+			out = string(stdin)
 
 			time.Sleep(1000 * time.Millisecond)
 			flg = 1
@@ -333,5 +334,4 @@ func main() {
 	controller(stateCh, keyCh, timerCh)
 	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
 
-	defer termbox.Close()
 }
