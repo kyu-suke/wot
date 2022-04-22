@@ -1,7 +1,6 @@
-package main
+package gms
 
 import (
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -93,11 +92,11 @@ func drawLoop(sch chan state) {
 		// esa
 		if len(feed) < 1 {
 			rand.Seed(time.Now().UnixNano())
-			// TODO feed appears outside field
+			// XXX maybe fixed
 			feed = []Feed{
 				{
-					x: rand.Intn(fld.right - 1),
-					y: rand.Intn(fld.bottom - 1),
+					x: rand.Intn(fld.right-1) + 1,
+					y: rand.Intn(fld.bottom-4) + 3,
 				},
 			}
 		}
@@ -266,21 +265,13 @@ func gameclose() {
 	fmt.Println(out)
 }
 
-func main() {
-	var s = flag.Int("s", 100, "speed")
-	var h = flag.Int("h", 25, "stage height")
-	var w = flag.Int("w", 80, "stage width")
-	flag.Parse()
+func StartSnakeGame(speed, height, width int) {
 
-	_timeSpan = *s
-	_height = *h
-	_width = *w
-
-	err := termbox.Init()
 	defer gameclose()
-	if err != nil {
-		panic(err)
-	}
+
+	_timeSpan = speed
+	_height = height
+	_width = width
 
 	stateCh := make(chan state)
 	keyCh := make(chan termbox.Event)
